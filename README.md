@@ -1,134 +1,203 @@
 # NanoParse
 
-**NanoParse** is a lightweight natural-language command parser that converts user instructions into structured JSON. It uses knowledge distillation to fine-tune a compact Pythia-70M student model using teacher-generated training data, then serves the model through a containerised FastAPI application deployed on Kubernetes.
+[![CI](https://github.com/Trishanshv/CC-project/actions/workflows/ci.yml/badge.svg)](https://github.com/Trishanshv/CC-project/actions/workflows/ci.yml)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Trishanshv%2FCC--project-blue.svg)](https://github.com/Trishanshv/CC-project)
+[![Release](https://img.shields.io/badge/Release-v1.0-green.svg)](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
+
+**NanoParse** is a lightweight natural-language command parser designed to convert user queries into structured JSON intents. It uses knowledge distillation to fine-tune a compact Pythia-70M student model from a teacher model (Ollama Phi-3.5), storing model artifacts in an S3-compatible SeaweedFS object store, and serving inference via a containerised FastAPI application orchestrated on Kubernetes (k3d) with horizontal auto-scaling.
+
+GitHub Repository: [https://github.com/Trishanshv/CC-project](https://github.com/Trishanshv/CC-project)  
+Documentation Root: `README.md`
+
+---
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Repository Structure](#repository-structure)
+- [Prerequisites](#prerequisites)
+- [Quick Start Guide](#quick-start-guide)
+  - [1. Build Commands](#1-build-commands)
+  - [2. Deploy Commands](#2-deploy-commands)
+  - [3. Test Commands](#3-test-commands)
+  - [4. Teardown Commands](#4-teardown-commands)
+- [API Usage & Endpoints](#api-usage--endpoints)
+- [Network & Security ACLs](#network--security-acls)
+- [Performance & Benchmark Results](#performance--benchmark-results)
+- [Model Artifacts & Release](#model-artifacts--release)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Responsible AI Development](#responsible-ai-development)
+
+---
 
 ## Architecture
 
 ```text
-Natural Language Input
-        |
-        v
-   FastAPI Service
-        |
-        v
- Fine-tuned Pythia-70M
-        |
-        v
- JSON Validation
-        |
-        v
- Structured Response
-
-Model Storage: SeaweedFS (S3-compatible)
-Orchestration: Kubernetes (k3d)
-Scaling: Horizontal Pod Autoscaler
-Monitoring: Locust and kubectl metrics
+Natural Language Input ("Set an alarm for 7 am")
+         │
+         ▼
+  Ingress Controller (Port 8080)
+         │
+         ▼
+  FastAPI Service (nanoparse-service:v1)
+         │
+         ├─── Model Init / Download from SeaweedFS (S3)
+         ▼
+  Fine-tuned Pythia-70M Student Model (ONNX / Torch)
+         │
+         ▼
+  JSON Schema Validation & Intent Framing
+         │
+         ▼
+Structured Output ({"intent": "alarm_set", "time": "seven am", ...})
 ```
+
+- **Inference Runtime:** FastAPI container running inside Kubernetes (`app` namespace).
+- **Storage Layer:** S3-compatible SeaweedFS deployment inside Kubernetes (`data` namespace).
+- **Autoscaling:** Horizontal Pod Autoscaler (HPA) targeting CPU utilisation across replicas.
+
+---
 
 ## Technology Stack
 
-- **Model:** EleutherAI/Pythia-70M
-- **Teacher:** Ollama Phi-3.5
-- **ML Framework:** PyTorch and Transformers
-- **API:** FastAPI and Uvicorn
-- **Object Storage:** SeaweedFS
+- **Student Model:** EleutherAI/Pythia-70M (70M parameter transformer)
+- **Teacher Model:** Ollama Phi-3.5 (distillation source)
+- **Frameworks:** PyTorch, Hugging Face Transformers, Tokenizers, Safetensors
+- **Serving:** FastAPI, Uvicorn, Pydantic
+- **Storage:** SeaweedFS (S3-compatible object store)
 - **Containerisation:** Docker
-- **Orchestration:** Kubernetes using k3d
-- **Deployment:** Helm
+- **Cluster Orchestration:** Kubernetes with k3d (lightweight multi-node k3s in Docker)
+- **Package Management:** Helm v3
 - **Load Testing:** Locust
-- **CI/CD:** GitHub Actions and Gitleaks
+- **CI/CD:** GitHub Actions, Ruff, Gitleaks
+
+---
 
 ## Repository Structure
 
-| Directory | Purpose |
-|---|---|
-| `data/` | Validation data and schema |
-| `datasets/` | Cleaned training datasets |
-| `worker/` | Teacher generation and data cleaning |
-| `training/` | Student model training configuration and scripts |
-| `models/` | Model release metadata and local model artifacts |
-| `service/` | FastAPI application and Dockerfile |
-| `cluster/` | k3d and SeaweedFS configuration |
-| `k8s/` | Kubernetes Deployment, Service, Ingress and HPA |
-| `network/` | Subnet design and network ACL simulation |
-| `tools/` | Evaluation, prediction, scoring and load-testing tools |
-| `scripts/` | Deployment, teardown and model-upload scripts |
-| `tests/` | Unit tests |
-| `results/` | Experimental and assignment evidence |
+```text
+.
+├── README.md               # Primary project documentation in root
+├── Makefile                # Automation targets (train, up, down)
+├── cluster/                # k3d cluster and SeaweedFS Helm configurations
+│   ├── k3d.yaml            # k3d cluster specification and port mappings
+│   └── seaweedfs-values.yaml # Helm chart values for SeaweedFS
+├── k8s/                    # Kubernetes manifests
+│   └── task4.yaml          # Deployment, Service, Ingress, and HPA configurations
+├── service/                # FastAPI inference service
+│   ├── app.py              # Application logic and endpoints
+│   ├── Dockerfile          # Service container image definition
+│   └── requirements.txt    # Service dependencies
+├── training/               # Model training and distillation scripts
+│   ├── train.py            # Student model fine-tuning routine
+│   └── dataset.py          # PyTorch Dataset for prompt/completion pairs
+├── data/                   # Validation dataset and JSON schema definitions
+├── datasets/               # Cleaned datasets for training
+├── tools/                  # Evaluation, NACL simulation, and Locust load testing
+│   ├── score.py            # Intent & slot prediction scoring
+│   ├── nacl_sim.py         # Network ACL simulator
+│   └── locustfile.py       # Locust load test scenarios
+├── network/                # Subnet design, CIDR allocations, and NACL rules
+├── scripts/                # Deployment, teardown, and S3 upload scripts
+│   ├── deploy.sh           # End-to-end deployment script
+│   ├── destroy.sh          # Cluster cleanup script
+│   └── upload_model.py     # S3 bucket creation and model upload helper
+├── tests/                  # Unit tests
+└── results/                # Evaluation reports and load testing benchmark data
+```
 
-## Requirements
+---
 
-- Docker
-- k3d
-- kubectl
-- Helm
-- Python 3.12 or compatible environment for the training and tooling workflow
-- Make
-- Locust for load testing
+## Prerequisites
 
-The deployment script creates `.venv-deploy` automatically for model-upload dependencies.
+Before running the commands below, ensure your environment has the following tools installed:
 
-## Setup
+- **Docker** (v20.10+)
+- **k3d** (v5.0+)
+- **kubectl** (v1.24+)
+- **Helm** (v3.0+)
+- **Python** (3.10 to 3.12)
+- **Make**
+- **curl** and **tar**
 
 Clone the repository:
-
 ```bash
 git clone https://github.com/Trishanshv/CC-project.git
-cd NanoParse
+cd CC-project
 ```
 
-Create and activate a Python environment:
-
+Set up a virtual environment:
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Install the service dependencies if running locally:
-
-```bash
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r service/requirements.txt
 ```
 
-## Model Training
+---
 
-The student model is based on EleutherAI/Pythia-70M.
+## Quick Start Guide
 
-Training configuration:
+### 1. Build Commands
 
-- Maximum training samples: 1,500
-- Epochs: 3
-- Batch size: 4
-- Learning rate: 0.00005
-- Maximum sequence length: 256
-- Optimisation: AdamW weight decay 0.01
-- Execution device: CPU
-- Random seed: 42
-
-Train v1:
-
+#### Build Service Docker Image
+To build the FastAPI inference Docker image directly:
 ```bash
+docker build -t nanoparse-service:v1 service/
+```
+
+#### Train the Student Model (Knowledge Distillation)
+Train the Pythia-70M student model using fine-tuning scripts:
+```bash
+# Train baseline v1 model
 make train SUBSET=0 VERSION=v1
+
+# Alternatively, run using Python directly
+python training/train.py --version v1 --seed 42 --subset 0
 ```
+*Note: Training artifacts are output to `training/output/` and excluded from source control.*
 
-Train an experimental v2:
+---
 
+### 2. Deploy Commands
+
+Deploy the entire stack (k3d cluster, SeaweedFS S3 storage, model download & upload, Docker image build & import, and Kubernetes manifests):
+
+#### Deploy using Makefile
 ```bash
-make train SUBSET=0 VERSION=v2
+# Deploy with default production model (v1)
+make up
+
+# Or specify a model version
+make up MODEL_VERSION=v1
 ```
 
-The optional `--data` argument can select a different training dataset:
-
+#### Deploy using Deployment Script directly
 ```bash
-python training/train.py --version v2 --data datasets/v2/train.jsonl
+bash scripts/deploy.sh
 ```
 
-Training outputs are stored under `training/output/` and are excluded from Git.
+#### What the Deployment Workflow Does:
+1. Provisions the k3d cluster `nanoParse-cluster` configured via `cluster/k3d.yaml`.
+2. Deploys SeaweedFS in the `data` namespace using Helm with `cluster/seaweedfs-values.yaml`.
+3. Downloads the released model archive from [GitHub Releases](https://github.com/Trishanshv/CC-project/releases/tag/v1.0).
+4. Port-forwards the S3 endpoint and executes `scripts/upload_model.py` to upload the weights into SeaweedFS.
+5. Builds `nanoparse-service:v1` and imports it into the k3d cluster container cache.
+6. Applies Kubernetes manifests (`k8s/task4.yaml`) in the `app` namespace.
+7. Verifies rollout readiness (`kubectl rollout status deployment/nanoparse -n app`).
 
-## Evaluation
+---
 
-Generate predictions and evaluate the model using the provided tools:
+### 3. Test Commands
 
+#### Run Unit Tests
+Run the test suite using `unittest`:
+```bash
+python -m unittest discover -s tests -v
+```
+
+#### Evaluate Model Accuracy & Scoring
+Score model predictions against the validation dataset:
 ```bash
 python tools/score.py \
   results/student_predictions.jsonl \
@@ -136,82 +205,17 @@ python tools/score.py \
   --out results/student_validation.json
 ```
 
-The evaluator measures:
-
-- JSON validity
-- Intent accuracy
-- Date accuracy
-- Time accuracy
-- Place accuracy
-- Full-frame accuracy
-
-## Deployment
-
-Deploy the production v1 model:
-
+#### Test Network ACLs (NACL Simulator)
+Simulate and verify inbound and outbound network ACL rules:
 ```bash
-make up MODEL_VERSION=v1
+python tools/nacl_sim.py \
+  network/nacl.json \
+  network/packets_sample.jsonl \
+  --check
 ```
 
-Deploy the experimental v2 model:
-
-```bash
-make up MODEL_VERSION=v2
-```
-
-The deployment script:
-
-1. Creates the k3d cluster if required.
-2. Installs SeaweedFS through Helm.
-3. Downloads the selected model archive from the GitHub Release.
-4. Uploads the model to S3-compatible storage.
-5. Builds and imports the application Docker image.
-6. Deploys the Kubernetes resources.
-7. Waits for the application rollout.
-
-API endpoint:
-
-```text
-http://localhost:8080/parse
-```
-
-## API Usage
-
-Send a POST request:
-
-```bash
-curl -X POST http://localhost:8080/parse \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Set an alarm for 7 am"}'
-```
-
-The service returns structured JSON containing:
-
-```json
-{
-  "intent": "alarm_set",
-  "date": null,
-  "time": "seven am",
-  "place": null
-}
-```
-
-The exact prediction depends on model output.
-
-Health endpoints:
-
-- `GET /healthz` — process health
-- `GET /readyz` — model readiness
-- `POST /parse` — command parsing
-
-Successful responses include `X-Model-Version` and `X-Served-By` headers.
-
-## Kubernetes and Load Testing
-
-The Kubernetes deployment uses two replicas during the assignment load test, with an HPA configured for CPU-based scaling.
-
-Run the standard Locust test:
-
+#### Run Load & Performance Tests (Locust)
+Execute headless load tests against the running service:
 ```bash
 locust -f tools/locustfile.py \
   --headless \
@@ -222,115 +226,129 @@ locust -f tools/locustfile.py \
   --csv results/task7/loadtest
 ```
 
-Monitor resource utilisation:
-
+#### Monitor Cluster & Pod Metrics
 ```bash
+# Pod statuses
+kubectl get pods -n app
+kubectl get pods -n data
+
+# Horizontal Pod Autoscaler status
+kubectl get hpa -n app
+
+# Resource utilisation (CPU / Memory)
 kubectl top pods -n app
 ```
 
-Inspect the deployment:
+---
 
-```bash
-kubectl get pods -n app
-kubectl get services -n app
-kubectl get hpa -n app
-```
+### 4. Teardown Commands
 
-## Network Configuration
+Tear down the running environment, destroy the k3d cluster, and clean up temporary deployment state:
 
-The `network/` directory contains:
-
-- Subnet allocation and CIDR design
-- Inbound and outbound network ACL rules
-- ACL explanation
-- Sample packets for simulation
-
-Run the ACL tests:
-
-```bash
-python tools/nacl_sim.py \
-  network/nacl.json \
-  network/packets_sample.jsonl \
-  --check
-```
-
-## Automated Testing and CI
-
-GitHub Actions runs the following stages:
-
-1. Python compilation and Ruff lint checks
-2. Unit tests
-3. Model evaluation using the released v1 artifact
-4. Gitleaks secret scanning
-
-The manual workflow also supports evaluation of an untrained model and enforces a 95% JSON-validity quality gate.
-
-Run unit tests locally:
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## Experimental Results
-
-The production v1 model achieved the following validation results:
-
-| Metric | Result |
-|---|---:|
-| JSON validity | 90% |
-| Intent accuracy | 75% |
-| Date accuracy | 68% |
-| Time accuracy | 76% |
-| Place accuracy | 77% |
-| Full-frame accuracy | 41% |
-
-A separate v2 experiment achieved 89% JSON validity and 42% full-frame accuracy. V1 remains the deployed production version.
-
-### Task 7 Load Test
-
-Standard two-minute Locust test using four concurrent users:
-
-| Metric | Result |
-|---|---:|
-| Requests | 89 |
-| Successful requests | 78 |
-| Failed requests | 11 |
-| Error rate | 12.36% |
-| Median latency | 3,700 ms |
-| p95 latency | 16,000 ms |
-| Throughput | 0.748 requests/sec |
-
-The two replicas served 41 and 37 successful requests respectively.
-
-The measured p95 latency and error rate do not meet the assignment targets of 5 seconds and 1%. Resource samples showed CPU peaks close to 1 core per pod, while peak memory remained below 560 MiB per pod.
-
-These results are reported as measured, not as performance targets achieved.
-
-## Model Artifact
-
-Model archives are distributed through the GitHub Release rather than committed to the repository.
-
-Release: [NanoParse v1.0](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
-
-The deployment and CI workflows verify the v1 model archive checksum before use.
-
-## AI Use and Responsible Development
-
-See [AI_USE.md](AI_USE.md) for details about AI-assisted development, teacher-generated data, human oversight, validation and known limitations.
-
-## Cleanup
-
-Delete the local Kubernetes cluster and its resources:
-
+#### Teardown using Makefile
 ```bash
 make down
 ```
 
-## Limitations and Future Improvements
+#### Teardown using Teardown Script directly
+```bash
+bash scripts/destroy.sh
+```
 
-- Improve JSON validity and full-frame prediction accuracy.
-- Reduce CPU inference latency and improve throughput.
-- Improve reliability under concurrent requests.
-- Evaluate multi-node Kubernetes deployment and replicated storage.
-- Expand validation coverage and test recovery under failure conditions.
-- Use production-grade secret management and TLS for external deployment.
+---
+
+## API Usage & Endpoints
+
+Once deployed, the service is accessible at `http://localhost:8080`.
+
+### Health & Readiness Endpoints
+- **Liveness:** `GET http://localhost:8080/healthz`
+- **Readiness:** `GET http://localhost:8080/readyz`
+
+### Command Parsing Endpoint
+- **Parse:** `POST http://localhost:8080/parse`
+
+#### Example Request:
+```bash
+curl -X POST http://localhost:8080/parse \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Set an alarm for 7 am"}'
+```
+
+#### Example Response:
+```json
+{
+  "intent": "alarm_set",
+  "date": null,
+  "time": "seven am",
+  "place": null
+}
+```
+
+Response headers include tracking metadata:
+- `X-Model-Version`: Deployed model release version.
+- `X-Served-By`: Pod identifier handling the request.
+
+---
+
+## Network & Security ACLs
+
+The `network/` directory establishes strict CIDR partitioning:
+- Inbound and outbound ACL rules restricting inter-tier communication.
+- Packet simulations validating permitted vs. denied traffic flows using `tools/nacl_sim.py`.
+
+---
+
+## Performance & Benchmark Results
+
+### Model Validation Metrics (v1 Release)
+
+| Metric | Result | Target Gate |
+|---|---:|---:|
+| **JSON Validity** | **90%** | ≥ 95% |
+| **Intent Accuracy** | **75%** | - |
+| **Date Accuracy** | **68%** | - |
+| **Time Accuracy** | **76%** | - |
+| **Place Accuracy** | **77%** | - |
+| **Full-Frame Accuracy** | **41%** | - |
+
+### Load Test Benchmark (Locust, 4 Concurrent Users, 2 Replicas)
+
+| Metric | Result | Target Benchmark |
+|---|---:|---:|
+| **Total Requests** | 89 | - |
+| **Successful Requests** | 78 | - |
+| **Failed Requests** | 11 | - |
+| **Error Rate** | 12.36% | ≤ 1% |
+| **Median Latency** | 3,700 ms | - |
+| **p95 Latency** | 16,000 ms | ≤ 5,000 ms |
+| **Throughput** | 0.748 req/s | - |
+
+---
+
+## Model Artifacts & Release
+
+Model archives are distributed through GitHub Releases to avoid bloating the git history:
+
+- **Release Artifacts:** [NanoParse v1.0 Release](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
+- **Archive File:** `pythia-70m-v1.tar.gz`
+- **Checksum Verification (SHA-256):**
+  ```text
+  3b098817b3ab49b30b44cd2b6086b71b1ef7645542451883d54dfcfebab47bfe  model.tar.gz
+  ```
+
+---
+
+## CI/CD Pipeline
+
+The GitHub Actions workflow defined in `.github/workflows/ci.yml` automates:
+1. **Linting & Code Quality:** Python compilation checks and Ruff linting.
+2. **Unit Testing:** Discovers and runs tests under `tests/`.
+3. **Model Verification & Evaluation:** Fetches model release from `https://github.com/Trishanshv/CC-project/releases/download/v1.0/pythia-70m-v1.tar.gz`, validates the SHA256 checksum, and evaluates JSON validity.
+4. **Secret Scanning:** Scans commits using Gitleaks.
+
+---
+
+## Responsible AI Development
+
+Refer to [AI_USE.md](AI_USE.md) for detailed disclosures on teacher-student distillation protocols, synthetic data handling, limitations, and human oversight procedures.
