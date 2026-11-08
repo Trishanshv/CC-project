@@ -1,10 +1,10 @@
-# NanoParse
+# CCproject
 
 [![CI](https://github.com/Trishanshv/CC-project/actions/workflows/ci.yml/badge.svg)](https://github.com/Trishanshv/CC-project/actions/workflows/ci.yml)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Trishanshv%2FCC--project-blue.svg)](https://github.com/Trishanshv/CC-project)
 [![Release](https://img.shields.io/badge/Release-v1.0-green.svg)](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
 
-**NanoParse** is a lightweight natural-language command parser designed to convert user queries into structured JSON intents. It uses knowledge distillation to fine-tune a compact Pythia-70M student model from a teacher model (Ollama Phi-3.5), storing model artifacts in an S3-compatible SeaweedFS object store, and serving inference via a containerised FastAPI application orchestrated on Kubernetes (k3d) with horizontal auto-scaling.
+**CCproject** is a lightweight natural-language command parser designed to convert user queries into structured JSON intents. It uses knowledge distillation to fine-tune a compact Pythia-70M student model from a teacher model (Ollama Phi-3.5), storing model artifacts in an S3-compatible SeaweedFS object store, and serving inference via a containerised FastAPI application orchestrated on Kubernetes (k3d) with horizontal auto-scaling.
 
 GitHub Repository: [https://github.com/Trishanshv/CC-project](https://github.com/Trishanshv/CC-project)  
 Documentation Root: `README.md`
@@ -330,7 +330,7 @@ The `network/` directory establishes strict CIDR partitioning:
 
 Model archives are distributed through GitHub Releases to avoid bloating the git history:
 
-- **Release Artifacts:** [NanoParse v1.0 Release](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
+- **Release Artifacts:** [CCproject v1.0 Release](https://github.com/Trishanshv/CC-project/releases/tag/v1.0)
 - **Archive File:** `pythia-70m-v1.tar.gz`
 - **Checksum Verification (SHA-256):**
   ```text

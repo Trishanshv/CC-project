@@ -1,4 +1,4 @@
-# AI Usage Disclosure — NanoParse
+# AI Usage Disclosure — CCproject
 
 ## 1. AI tools used
 
@@ -6,7 +6,7 @@
 Used as a teacher model to generate structured intent and slot annotations for the command dataset.
 
 ### EleutherAI Pythia-70M
-Used as the student language model, fine-tuned on the cleaned command dataset to generate JSON predictions for NanoParse.
+Used as the student language model, fine-tuned on the cleaned command dataset to generate JSON predictions for CCproject.
 
 ### ChatGPT
 Used as a development assistant for technical explanations, debugging, reviewing implementation choices, and assistance with deployment and testing workflows. All commands and changes were reviewed and executed by the project developer.

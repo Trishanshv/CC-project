@@ -65,9 +65,12 @@ mkdir -p "$MODEL_DIR"
 MODEL_PATH="$MODEL_DIR/$MODEL_FILE"
 
 if [ ! -f "$MODEL_PATH" ]; then
-  curl -fL \
-    "https://github.com/Trishanshv/CC-project/releases/download/v1.0/$MODEL_FILE" \
-    -o "$MODEL_PATH"
+  MODEL_URL="https://github.com/Trishanshv/CC-project/releases/download/v1.0/$MODEL_FILE"
+  BACKUP_URL="https://github.com/rahul-singh92/NanoParse/releases/download/v1.0/$MODEL_FILE"
+  if ! curl -fL "$MODEL_URL" -o "$MODEL_PATH" 2>/dev/null; then
+    echo "Model release not found on Trishanshv/CC-project, falling back to upstream mirror..."
+    curl -fL "$BACKUP_URL" -o "$MODEL_PATH"
+  fi
 fi
 
 echo "==> Starting temporary S3 port-forward"
