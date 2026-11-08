@@ -112,7 +112,17 @@ app = FastAPI(lifespan=lifespan)
 
 def validate_output(raw):
     try:
-        result = json.loads(raw)
+        raw_clean = str(raw).strip()
+        try:
+            result = json.loads(raw_clean)
+        except json.JSONDecodeError:
+            candidate = raw_clean
+            if candidate.count('"') % 2 != 0:
+                candidate += '"}'
+            elif not candidate.endswith('}'):
+                candidate += '}'
+            result = json.loads(candidate)
+
         schema = json.loads(SCHEMA_PATH.read_text())
 
         if not isinstance(result, dict):

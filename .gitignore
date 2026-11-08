@@ -22,6 +22,7 @@ training/output/
 checkpoints/
 
 # Model archives (stored in GitHub Releases / SeaweedFS)
+*.tar.gz
 models/**/*.tar.gz
 .cache/
 

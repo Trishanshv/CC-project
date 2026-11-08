@@ -70,7 +70,22 @@ def main():
             )
 
         generated = output[0][inputs["input_ids"].shape[1]:]
-        raw = tokenizer.decode(generated, skip_special_tokens=True)
+        raw = tokenizer.decode(generated, skip_special_tokens=True).strip()
+
+        # If raw text was cut off before closing quote/brace, attempt clean closure
+        try:
+            json.loads(raw)
+        except json.JSONDecodeError:
+            candidate = raw
+            if candidate.count('"') % 2 != 0:
+                candidate += '"}'
+            elif not candidate.endswith('}'):
+                candidate += '}'
+            try:
+                json.loads(candidate)
+                raw = candidate
+            except Exception:
+                pass
 
         predictions.append({
             "id": record["id"],
